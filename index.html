@@ -1300,7 +1300,8 @@ async function sendAllPackagesToSheet() {
   for (const card of packageCards) {
     const idx = card.id.replace('pkg-card-', '');
     const strain = (document.getElementById('pkg-' + idx + '-strain') || {}).value || '';
-    const type = (document.getElementById('pkg-' + idx + '-type') || {}).value || '';
+    let type = (document.getElementById('pkg-' + idx + '-type') || {}).value || '';
+    if (type.toLowerCase().includes('tissue')) type = 'Clones';
     const qtyRaw = (document.getElementById('pkg-' + idx + '-qty') || {}).value || '0';
     const qty = parseFloat(qtyRaw) || 0;
     const unit = (document.getElementById('pkg-' + idx + '-unit') || {}).value || 'lb';
