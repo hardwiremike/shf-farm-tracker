@@ -206,6 +206,24 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 /* Image preview */
 .image-preview { width: 100%; border-radius: var(--radius); margin-bottom: 16px; display: none; }
 .image-preview.visible { display: block; }
+
+/* Editable fields inside parsed cards */
+.parsed-card .form-group { margin-bottom: 10px; }
+.parsed-card .form-group:last-child { margin-bottom: 0; }
+.parsed-card .form-group label { font-size: 11px; margin-bottom: 3px; }
+.parsed-card .form-group input,
+.parsed-card .form-group select { padding: 10px; font-size: 15px; }
+
+.package-card .form-group { margin-bottom: 8px; }
+.package-card .form-group label { font-size: 11px; margin-bottom: 3px; color: var(--gray-500); }
+.package-card .form-group input { padding: 10px; font-size: 15px; }
+.package-card .pkg-uid { font-size: 11px; color: var(--gray-500); font-family: monospace; word-break: break-all; margin-bottom: 8px; }
+.package-card .remove-pkg { background: none; border: none; color: var(--red); font-size: 13px; cursor: pointer; padding: 4px 8px; float: right; }
+
+.confidence-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 8px; }
+.confidence-badge.high { background: #D1FAE5; color: #065F46; }
+.confidence-badge.medium { background: #FEF3C7; color: #92400E; }
+.confidence-badge.low { background: #FEE2E2; color: #991B1B; }
 </style>
 </head>
 <body>
@@ -266,50 +284,71 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 <div id="form-scan" class="scan-screen">
   <div id="scan-status" class="status"></div>
 
-  <!-- Camera / Image Capture -->
-  <div class="camera-area" id="cameraArea">
-    <video id="cameraVideo" autoplay playsinline></video>
-    <canvas id="cameraCanvas"></canvas>
-    <div class="camera-placeholder" id="cameraPlaceholder">
-      <div class="cam-icon">📷</div>
-      <p>Snap a photo of the Metrc manifest or pick one from your gallery</p>
+  <!-- Image Capture (native file inputs — way better UX on iPhone) -->
+  <div id="scanCaptureArea">
+    <div class="camera-area" id="cameraArea">
+      <div class="camera-placeholder" id="cameraPlaceholder">
+        <div class="cam-icon">📷</div>
+        <p>Snap a photo of the Metrc manifest or pick one from your gallery</p>
+      </div>
     </div>
-    <div class="overlay" id="cameraOverlay" style="display:none;">
-      <div class="frame"></div>
+
+    <img id="imagePreview" class="image-preview" alt="Captured manifest">
+
+    <div class="capture-controls" id="captureControls">
+      <button class="capture-btn camera" onclick="document.getElementById('cameraInput').click()">
+        📷 Take Photo
+      </button>
+      <button class="capture-btn gallery" onclick="document.getElementById('galleryInput').click()">
+        🖼️ Gallery
+      </button>
+      <!-- Native camera — one tap, uses iOS camera app, rear-facing -->
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleImageCapture(event)">
+      <!-- Gallery picker — no capture attribute, opens photo library -->
+      <input type="file" id="galleryInput" accept="image/*" style="display:none;" onchange="handleImageCapture(event)">
     </div>
   </div>
 
-  <img id="imagePreview" class="image-preview" alt="Captured manifest">
-
-  <div class="capture-controls" id="captureControls">
-    <button class="capture-btn camera" id="snapBtn" onclick="startCamera()">
-      📷 Take Photo
-    </button>
-    <button class="capture-btn gallery" onclick="pickFromGallery()">
-      🖼️ Gallery
-    </button>
-    <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="handleFileSelect(event)">
-  </div>
-
-  <!-- Processing -->
+  <!-- Processing Indicator -->
   <div class="processing-indicator" id="processingIndicator">
     <div class="big-spinner"></div>
     <p>Reading manifest...</p>
-    <div class="progress-text" id="ocrProgress">Loading OCR engine</div>
+    <div class="progress-text" id="ocrProgress">Sending to Claude Vision...</div>
   </div>
 
-  <!-- Parsed Results -->
+  <!-- Editable Parsed Results -->
   <div class="parsed-results" id="parsedResults">
     <div id="directionBadge" class="direction-badge outbound">OUTBOUND SALE</div>
 
     <div class="parsed-card">
       <h4>Manifest Info</h4>
-      <div class="parsed-field"><span class="label">Manifest #</span><span class="value" id="parsed-manifestNo">—</span></div>
-      <div class="parsed-field"><span class="label">Date</span><span class="value" id="parsed-date">—</span></div>
-      <div class="parsed-field"><span class="label">From</span><span class="value" id="parsed-from">—</span></div>
-      <div class="parsed-field"><span class="label">To</span><span class="value" id="parsed-to">—</span></div>
+      <div class="form-group">
+        <label>Manifest #</label>
+        <input type="text" id="edit-manifestNo" placeholder="Manifest number">
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="edit-date">
+      </div>
+      <div class="form-group">
+        <label>From (Origin)</label>
+        <input type="text" id="edit-from" placeholder="Originating entity">
+      </div>
+      <div class="form-group">
+        <label>To (Destination)</label>
+        <input type="text" id="edit-to" placeholder="Destination entity">
+      </div>
+      <div class="form-group">
+        <label>Direction</label>
+        <select id="edit-direction" onchange="updateDirectionBadge()">
+          <option value="outbound">Outbound</option>
+          <option value="inbound">Inbound</option>
+          <option value="nursery">Nursery Inbound</option>
+        </select>
+      </div>
     </div>
 
+    <!-- Editable package cards inserted here by JS -->
     <div id="packagesList"></div>
 
     <div class="action-buttons">
@@ -605,8 +644,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <button class="submit-btn primary" onclick="submitInbound()">Submit Inbound Entry</button>
 </div>
 
-<!-- Tesseract.js loaded on demand when scanner is used -->
-
 <script>
 // ============================================================
 // STATE
@@ -614,11 +651,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 let dropdownData = null;
 let offlineQueue = JSON.parse(localStorage.getItem('shf_queue') || '[]');
 let currentForm = null;
-let cameraStream = null;
-let parsedManifest = null; // holds the latest scan result
 
-// SHF identifiers for direction detection
-const SHF_NAMES = ['highland canopy', 'the highland canopy', 'shf', 'sonoma hills'];
+// Cloudflare Worker URL for Claude Vision manifest scanning
+// Mike: replace this after deploying the worker
+const WORKER_URL = 'PASTE_YOUR_CLOUDFLARE_WORKER_URL_HERE';
 
 // ============================================================
 // CONFIG / ENDPOINT
@@ -777,7 +813,7 @@ function openForm(type) {
 }
 
 function goHome() {
-  stopCamera();
+  resetScanner();
   document.getElementById('homeScreen').style.display = 'block';
   document.querySelectorAll('.form-screen, .scan-screen').forEach(f => f.classList.remove('active'));
   document.getElementById('backBtn').classList.remove('visible');
@@ -1003,97 +1039,35 @@ function clearCurrentForm() {
 }
 
 // ============================================================
-// MANIFEST SCANNER — CAMERA
+// MANIFEST SCANNER — IMAGE CAPTURE (native file inputs)
 // ============================================================
-async function startCamera() {
-  const video = document.getElementById('cameraVideo');
-  const placeholder = document.getElementById('cameraPlaceholder');
-  const overlay = document.getElementById('cameraOverlay');
-  const snapBtn = document.getElementById('snapBtn');
-
-  // If camera is already running, take the snapshot
-  if (cameraStream) {
-    captureFromCamera();
-    return;
-  }
-
-  try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 2560 } }
-    });
-    video.srcObject = cameraStream;
-    video.style.display = 'block';
-    placeholder.style.display = 'none';
-    overlay.style.display = 'flex';
-    snapBtn.innerHTML = '📸 Snap!';
-
-    // Hide image preview if showing
-    document.getElementById('imagePreview').classList.remove('visible');
-  } catch (err) {
-    showStatus('scan-status', 'error', '❌ Camera access denied. Use Gallery instead.');
-  }
-}
-
-function stopCamera() {
-  if (cameraStream) {
-    cameraStream.getTracks().forEach(t => t.stop());
-    cameraStream = null;
-  }
-  const video = document.getElementById('cameraVideo');
-  video.srcObject = null;
-  video.style.display = 'none';
-  document.getElementById('cameraPlaceholder').style.display = 'flex';
-  document.getElementById('cameraOverlay').style.display = 'none';
-  document.getElementById('snapBtn').innerHTML = '📷 Take Photo';
-}
-
-function captureFromCamera() {
-  const video = document.getElementById('cameraVideo');
-  const canvas = document.getElementById('cameraCanvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  canvas.getContext('2d').drawImage(video, 0, 0);
-
-  const imageData = canvas.toDataURL('image/png');
-  stopCamera();
-
-  // Show preview
-  const preview = document.getElementById('imagePreview');
-  preview.src = imageData;
-  preview.classList.add('visible');
-
-  // Run OCR
-  processImage(imageData);
-}
-
-function pickFromGallery() {
-  document.getElementById('fileInput').click();
-}
-
-function handleFileSelect(event) {
+function handleImageCapture(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  stopCamera();
+  const preview = document.getElementById('imagePreview');
+  const placeholder = document.getElementById('cameraPlaceholder');
 
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const imageData = e.target.result;
-    const preview = document.getElementById('imagePreview');
-    preview.src = imageData;
+  // Show preview immediately
+  const quickReader = new FileReader();
+  quickReader.onload = function(e) {
+    preview.src = e.target.result;
     preview.classList.add('visible');
-    processImage(imageData);
+    placeholder.style.display = 'none';
   };
-  reader.readAsDataURL(file);
+  quickReader.readAsDataURL(file);
 
-  // Reset so same file can be selected again
+  // Compress and send to Claude
+  compressAndProcess(file);
+
+  // Reset input so same file can be re-selected
   event.target.value = '';
 }
 
 // ============================================================
-// MANIFEST SCANNER — OCR + PARSING
+// MANIFEST SCANNER — COMPRESS + CALL CLAUDE VISION
 // ============================================================
-async function processImage(imageData) {
+async function compressAndProcess(file) {
   const controls = document.getElementById('captureControls');
   const processing = document.getElementById('processingIndicator');
   const results = document.getElementById('parsedResults');
@@ -1103,42 +1077,41 @@ async function processImage(imageData) {
   processing.classList.add('active');
   results.classList.remove('active');
 
-  try {
-    progressEl.textContent = 'Loading OCR engine...';
+  let compressedBase64 = null;
 
-    // Lazy-load Tesseract.js only when scanner is first used
-    if (typeof Tesseract === 'undefined') {
-      await new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js';
-        s.onload = resolve;
-        s.onerror = () => reject(new Error('Could not load OCR engine. Check your internet connection.'));
-        document.head.appendChild(s);
-      });
+  try {
+    progressEl.textContent = 'Compressing image...';
+    compressedBase64 = await compressImage(file, 1600, 0.82);
+
+    // Check if worker URL is configured
+    if (!WORKER_URL || WORKER_URL === 'PASTE_YOUR_CLOUDFLARE_WORKER_URL_HERE') {
+      throw new Error('Scanner not configured yet. Mike needs to deploy the Cloudflare Worker and update the WORKER_URL in the app code.');
     }
 
-    progressEl.textContent = 'Initializing OCR engine...';
+    progressEl.textContent = 'Sending to Claude Vision...';
 
-    const worker = await Tesseract.createWorker('eng', 1, {
-      logger: m => {
-        if (m.status === 'recognizing text') {
-          const pct = Math.round((m.progress || 0) * 100);
-          progressEl.textContent = 'Reading text... ' + pct + '%';
-        }
-      }
+    const response = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image_base64: compressedBase64,
+        media_type: 'image/jpeg',
+      }),
     });
 
-    progressEl.textContent = 'Recognizing text...';
-    const { data: { text } } = await worker.recognize(imageData);
-    await worker.terminate();
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ error: 'Network error' }));
+      throw new Error(errData.error || 'Worker returned ' + response.status);
+    }
 
-    progressEl.textContent = 'Parsing manifest fields...';
+    const result = await response.json();
 
-    // Parse the OCR text
-    parsedManifest = parseManifestText(text);
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'No data returned from Claude');
+    }
 
-    // Display results
-    displayParsedResults(parsedManifest);
+    progressEl.textContent = 'Building results...';
+    displayEditableResults(result.data);
 
     processing.classList.remove('active');
     results.classList.add('active');
@@ -1147,326 +1120,223 @@ async function processImage(imageData) {
   } catch (err) {
     processing.classList.remove('active');
     controls.style.display = 'flex';
-    showStatus('scan-status', 'error', '❌ OCR failed: ' + err.message + '. Try a clearer photo.');
-  }
-}
 
-function parseManifestText(text) {
-  // Normalize text
-  const t = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const lines = t.split('\n').map(l => l.trim()).filter(Boolean);
-  const fullText = lines.join(' ');
-
-  // --- Manifest Number ---
-  let manifestNo = '';
-  const mnMatch = fullText.match(/Manifest\s*(?:No\.?|Number)\s*[:\s]*(\d{7,12})/i);
-  if (mnMatch) manifestNo = mnMatch[1];
-
-  // --- Date Created ---
-  let dateCreated = '';
-  const dcMatch = fullText.match(/Date\s*Created\s*[:\s]*([\d]{1,2}\/[\d]{1,2}\/[\d]{4})/i);
-  if (dcMatch) dateCreated = dcMatch[1];
-  if (!dateCreated) {
-    const dcMatch2 = fullText.match(/Date\s*Created\s*[:\s]*([\d]{4}-[\d]{2}-[\d]{2})/i);
-    if (dcMatch2) dateCreated = dcMatch2[1];
-  }
-
-  // --- Originating Entity ---
-  let originEntity = '';
-  const oeMatch = fullText.match(/Originating\s*Entity\s*[:\s]*([^\n]+?)(?:\s*For\s*Agency|\s*Originating\s*License)/i);
-  if (oeMatch) originEntity = oeMatch[1].trim();
-
-  // --- Destination ---
-  let destination = '';
-  const destMatch = fullText.match(/1\.\s*Destination\s*[:\s]*([^\n]+?)(?:\s*Destination\s*Phone)/i);
-  if (destMatch) destination = destMatch[1].trim();
-  if (!destination) {
-    const destMatch2 = fullText.match(/Destination\s+([A-Z][^\n,]+?)(?:\s*Destination\s*Phone|\s*DCC|\s*CCL)/i);
-    if (destMatch2) destination = destMatch2[1].trim();
-  }
-
-  // --- Direction detection ---
-  const originLower = originEntity.toLowerCase();
-  const destLower = destination.toLowerCase();
-  const isOriginSHF = SHF_NAMES.some(n => originLower.includes(n));
-  const isDestSHF = SHF_NAMES.some(n => destLower.includes(n));
-
-  let direction = 'outbound'; // default
-  if (isDestSHF && !isOriginSHF) direction = 'inbound';
-  if (isOriginSHF && !isDestSHF) direction = 'outbound';
-
-  // --- Packages ---
-  const packages = parsePackages(fullText, t);
-
-  // Detect if nursery (clones, seeds, tissue culture)
-  const nurseryKeywords = ['clone', 'seed', 'tissue culture', 'immature', 'nursery', 'propagat'];
-  const isNursery = direction === 'inbound' && packages.some(p =>
-    nurseryKeywords.some(kw => (p.itemName + ' ' + p.type).toLowerCase().includes(kw))
-  );
-
-  return {
-    manifestNo,
-    dateCreated,
-    originEntity,
-    destination,
-    direction,
-    isNursery,
-    packages,
-    rawText: text
-  };
-}
-
-function parsePackages(fullText, rawText) {
-  const packages = [];
-
-  // Match package blocks — look for "N. Package | Shipped" pattern
-  // Metrc manifests list packages as numbered items with Item Name and Quantity
-  const pkgRegex = /(\d+)\.\s*Package\s*\|\s*Shipped/gi;
-  let match;
-  const pkgPositions = [];
-
-  while ((match = pkgRegex.exec(fullText)) !== null) {
-    pkgPositions.push({ num: parseInt(match[1]), index: match.index });
-  }
-
-  for (let i = 0; i < pkgPositions.length; i++) {
-    const start = pkgPositions[i].index;
-    const end = (i + 1 < pkgPositions.length) ? pkgPositions[i + 1].index : fullText.length;
-    const block = fullText.substring(start, end);
-
-    // Package UID (1A406...)
-    let packageUid = '';
-    const uidMatch = block.match(/(1A4\w{20,30})/i);
-    if (uidMatch) packageUid = uidMatch[1];
-
-    // Item Name - appears after Production Batch No. heading
-    let itemName = '';
-    try {
-      var inRe = new RegExp('(?:Item\\s*Name|Batch\\s*No\\.)\\s*[:\\s]*(?:Quantity)?\\s*(?:1A4\\w+\\s*)?(?:Lab\\s*Test[^\\n]*\\s*)?(?:Contains[^\\n]*\\s*)?([A-Z][A-Za-z\\s\\-#\\d]+?(?:Bulk\\s*\\w+|Clones?|Seeds?|Tissue\\s*Culture|Flower|Trim|Smalls|Leaf)[^\\n]*)', 'i');
-      var inMatch = block.match(inRe);
-      if (inMatch) {
-        itemName = inMatch[1].trim().replace(/\s+/g, ' ');
-      }
-    } catch(e) {}
-    // Fallback: look for strain-like pattern near "Bulk" or "Clone"
-    if (!itemName) {
+    if (!navigator.onLine && compressedBase64) {
+      // Queue image for later processing
       try {
-        var fbRe = new RegExp('([A-Z][A-Za-z\\s\\-#\\d]+?)\\s*-\\s*(Bulk\\s*\\w+|Clones?|Seeds?|Tissue\\s*Culture)', 'i');
-        var fallback = block.match(fbRe);
-        if (fallback) itemName = fallback[0].trim();
-      } catch(e) {}
-    }
-
-    // Quantity — "Shp: XX.XX lb" or "Shp: XX ea"
-    let quantity = '';
-    let unit = 'lb';
-    const qtyMatch = block.match(/Shp:\s*([\d,]+\.?\d*)\s*(lb|ea|g|oz|kg|each|ct)/i);
-    if (qtyMatch) {
-      quantity = qtyMatch[1].replace(/,/g, '');
-      unit = qtyMatch[2].toLowerCase();
-    }
-
-    // Strain — from "Strain: XYZ" in Item Details
-    let strain = '';
-    const strainMatch = block.match(/Strain:\s*([A-Za-z\s\-#\d'\.]+?)(?:\s*Source|\s*$)/i);
-    if (strainMatch) strain = strainMatch[1].trim();
-    // Fallback from item name: "Strain Name - Bulk Type"
-    if (!strain && itemName) {
-      const s = itemName.match(/^(.+?)\s*-\s*(?:Bulk|Clone|Seed|Tissue)/i);
-      if (s) strain = s[1].trim();
-    }
-
-    // Type — extract from item name: "Bulk Trim (Leaf)" → Trim, "Bulk Flower (Flower)" → Tops
-    let type = '';
-    if (itemName) {
-      const typeMatch = itemName.match(/Bulk\s*(Trim|Flower|Smalls|Tops|Mids|Fresh\s*Frozen)/i);
-      if (typeMatch) {
-        type = typeMatch[1].trim();
-        if (type.toLowerCase() === 'flower') type = 'Tops';
+        const queue = JSON.parse(localStorage.getItem('shf_scan_queue') || '[]');
+        queue.push({ image_base64: compressedBase64, timestamp: new Date().toISOString() });
+        localStorage.setItem('shf_scan_queue', JSON.stringify(queue));
+        showStatus('scan-status', 'info', '📤 No internet — image saved. Open scanner when you have signal.');
+      } catch (storageErr) {
+        showStatus('scan-status', 'error', '❌ Offline and storage full. Try again with internet.');
       }
-      // Clone / Tissue Culture / Seed
-      if (!type) {
-        const cloneMatch = itemName.match(/(Clone[s]?|Tissue\s*Culture|Seed[s]?|TC)/i);
-        if (cloneMatch) {
-          const ct = cloneMatch[1].toLowerCase();
-          if (ct.includes('tissue') || ct === 'tc') type = 'Tissue Culture';
-          else if (ct.includes('clone')) type = 'Clones';
-          else if (ct.includes('seed')) type = 'Seeds';
-        }
-      }
+    } else {
+      showStatus('scan-status', 'error', '❌ Scan failed: ' + err.message);
     }
-    // Trim from "(Leaf)" indicator
-    if (!type && itemName.toLowerCase().includes('leaf')) type = 'Trim';
-
-    // Source Harvest IDs (SHF_XXX_XXXXXX pattern)
-    const harvestIds = [];
-    const harvMatches = block.matchAll(/SHF[_\s][A-Z0-9#]+[_\s]\d{4,8}/gi);
-    for (const hm of harvMatches) {
-      harvestIds.push(hm[0].replace(/\s/g, '_'));
-    }
-
-    packages.push({
-      num: pkgPositions[i].num,
-      packageUid,
-      itemName,
-      strain,
-      type,
-      quantity,
-      unit,
-      harvestIds,
-    });
   }
+}
 
-  return packages;
+function compressImage(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = function() {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        const ratio = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve(dataUrl.split(',')[1]); // return raw base64 without data URI prefix
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
+    img.src = url;
+  });
 }
 
 // ============================================================
-// MANIFEST SCANNER — DISPLAY RESULTS
+// MANIFEST SCANNER — DISPLAY EDITABLE RESULTS
 // ============================================================
-function displayParsedResults(manifest) {
-  // Direction badge
-  const badge = document.getElementById('directionBadge');
-  if (manifest.isNursery) {
-    badge.textContent = '🌱 NURSERY INBOUND';
-    badge.className = 'direction-badge nursery';
-  } else if (manifest.direction === 'inbound') {
-    badge.textContent = '↩️ INBOUND';
-    badge.className = 'direction-badge inbound';
-  } else {
-    badge.textContent = '📦 OUTBOUND SALE';
-    badge.className = 'direction-badge outbound';
-  }
-
+function displayEditableResults(data) {
   // Manifest info
-  document.getElementById('parsed-manifestNo').textContent = manifest.manifestNo || '—';
-  document.getElementById('parsed-date').textContent = manifest.dateCreated || '—';
-  document.getElementById('parsed-from').textContent = manifest.originEntity || '—';
-  document.getElementById('parsed-to').textContent = manifest.destination || '—';
+  document.getElementById('edit-manifestNo').value = data.manifest_number || '';
 
-  // Packages
+  // Convert date to YYYY-MM-DD for date input
+  let dateVal = '';
+  if (data.date_created) {
+    const parts = data.date_created.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (parts) {
+      dateVal = parts[3] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(data.date_created)) {
+      dateVal = data.date_created;
+    }
+  }
+  document.getElementById('edit-date').value = dateVal || new Date().toISOString().split('T')[0];
+  document.getElementById('edit-from').value = data.origin_entity || '';
+  document.getElementById('edit-to').value = data.destination_entity || '';
+
+  // Direction
+  const dirSelect = document.getElementById('edit-direction');
+  if (data.is_nursery) {
+    dirSelect.value = 'nursery';
+  } else {
+    dirSelect.value = data.direction || 'outbound';
+  }
+  updateDirectionBadge();
+
+  // Package cards
   const list = document.getElementById('packagesList');
   list.innerHTML = '';
 
-  if (manifest.packages.length === 0) {
-    list.innerHTML = '<div class="parsed-card"><h4>No packages detected</h4><p style="font-size:13px;color:var(--gray-500);">The OCR may have had trouble reading the manifest. You can enter data manually using the form buttons below.</p></div>';
+  if (!data.packages || data.packages.length === 0) {
+    list.innerHTML = '<div class="parsed-card"><h4>No packages detected</h4><p style="font-size:13px;color:var(--gray-500);">Claude could not find package data. Try a clearer photo, or enter data manually.</p></div>';
+    return;
   }
 
-  manifest.packages.forEach((pkg, i) => {
+  data.packages.forEach((pkg, i) => {
     const card = document.createElement('div');
     card.className = 'package-card';
-    card.innerHTML = `
-      <div class="pkg-header">
-        <span class="pkg-num">PACKAGE ${pkg.num}</span>
-        ${pkg.packageUid ? '<span style="font-size:11px;color:var(--gray-500);font-family:monospace;">' + pkg.packageUid.substring(0,12) + '...</span>' : ''}
-      </div>
-      <div class="pkg-strain">${pkg.strain || pkg.itemName || 'Unknown Strain'}</div>
-      <div class="pkg-details" style="margin-top:8px;">
-        <div class="pkg-detail">Type: <span>${pkg.type || '—'}</span></div>
-        <div class="pkg-detail">Qty: <span>${pkg.quantity} ${pkg.unit}</span></div>
-        ${pkg.harvestIds.length ? '<div class="pkg-detail">Harvest: <span>' + pkg.harvestIds.join(', ') + '</span></div>' : ''}
-      </div>
-    `;
+    card.id = 'pkg-card-' + i;
+    card.innerHTML =
+      '<div class="pkg-header">' +
+        '<span class="pkg-num">PACKAGE ' + (i + 1) + '</span>' +
+        '<button class="remove-pkg" onclick="removePackageCard(' + i + ')" title="Remove">✕</button>' +
+      '</div>' +
+      (pkg.package_uid ? '<div class="pkg-uid">' + esc(pkg.package_uid) + '</div>' : '') +
+      '<div class="form-group">' +
+        '<label>Strain</label>' +
+        '<input type="text" id="pkg-' + i + '-strain" value="' + esc(pkg.strain || '') + '" placeholder="Strain name">' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Type</label>' +
+        '<input type="text" id="pkg-' + i + '-type" value="' + esc(pkg.type || '') + '" placeholder="Tops, Trim, Smalls...">' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<div class="form-group" style="flex:2;">' +
+          '<label>Quantity</label>' +
+          '<input type="number" id="pkg-' + i + '-qty" value="' + (pkg.quantity || '') + '" placeholder="0" step="0.01" inputmode="decimal">' +
+        '</div>' +
+        '<div class="form-group" style="flex:1;">' +
+          '<label>Unit</label>' +
+          '<input type="text" id="pkg-' + i + '-unit" value="' + esc(pkg.unit || 'lb') + '" placeholder="lb">' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Harvest IDs</label>' +
+        '<input type="text" id="pkg-' + i + '-harvestIds" value="' + esc((pkg.harvest_ids || []).join(', ')) + '" placeholder="SHF_XX_XXXXXX">' +
+      '</div>' +
+      '<input type="hidden" id="pkg-' + i + '-uid" value="' + esc(pkg.package_uid || '') + '">';
     list.appendChild(card);
   });
 
-  // Show a note about editing
-  if (manifest.packages.length > 0) {
-    const note = document.createElement('div');
-    note.style.cssText = 'font-size: 13px; color: var(--gray-500); text-align: center; padding: 8px 0;';
-    note.textContent = 'Review above, then tap "Send All" to add ' + manifest.packages.length + ' row(s) to the Flower Tracker';
-    list.appendChild(note);
+  // Summary note with confidence badge
+  const note = document.createElement('div');
+  note.style.cssText = 'font-size: 13px; color: var(--gray-500); text-align: center; padding: 12px 0;';
+  let html = 'Review and edit above, then tap "Send All"';
+  if (data.confidence) {
+    html += ' <span class="confidence-badge ' + data.confidence + '">' + data.confidence.toUpperCase() + '</span>';
   }
+  if (data.notes) {
+    html += '<br><span style="font-size:12px;color:var(--gold);">⚠️ ' + esc(data.notes) + '</span>';
+  }
+  note.innerHTML = html;
+  list.appendChild(note);
+}
+
+function esc(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function updateDirectionBadge() {
+  const dir = document.getElementById('edit-direction').value;
+  const badge = document.getElementById('directionBadge');
+  if (dir === 'nursery') { badge.textContent = '🌱 NURSERY INBOUND'; badge.className = 'direction-badge nursery'; }
+  else if (dir === 'inbound') { badge.textContent = '↩️ INBOUND'; badge.className = 'direction-badge inbound'; }
+  else { badge.textContent = '📦 OUTBOUND SALE'; badge.className = 'direction-badge outbound'; }
+}
+
+function removePackageCard(index) {
+  const card = document.getElementById('pkg-card-' + index);
+  if (card) card.remove();
 }
 
 // ============================================================
-// MANIFEST SCANNER — SEND TO SHEET
+// MANIFEST SCANNER — SEND TO SHEET (reads from editable fields)
 // ============================================================
 async function sendAllPackagesToSheet() {
-  if (!parsedManifest || parsedManifest.packages.length === 0) {
+  const manifestNo = document.getElementById('edit-manifestNo').value.trim();
+  const dateForSheet = document.getElementById('edit-date').value;
+  const originEntity = document.getElementById('edit-from').value.trim();
+  const destinationEntity = document.getElementById('edit-to').value.trim();
+  const direction = document.getElementById('edit-direction').value;
+
+  const packageCards = document.querySelectorAll('#packagesList .package-card');
+  if (packageCards.length === 0) {
     showStatus('scan-status', 'error', 'No packages to send. Try scanning again.');
     return;
   }
 
-  const m = parsedManifest;
   const btn = document.querySelector('.action-buttons .submit-btn.secondary');
   btn.disabled = true;
   btn.textContent = '⏳ Sending...';
 
   let successCount = 0;
   let errorMsg = '';
+  const total = packageCards.length;
 
-  // Convert manifest date to YYYY-MM-DD for the sheet
-  let dateForSheet = '';
-  if (m.dateCreated) {
-    // Handle M/D/YYYY format
-    const parts = m.dateCreated.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if (parts) {
-      dateForSheet = parts[3] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
-    } else {
-      dateForSheet = m.dateCreated;
-    }
-  }
+  for (const card of packageCards) {
+    const idx = card.id.replace('pkg-card-', '');
+    const strain = (document.getElementById('pkg-' + idx + '-strain') || {}).value || '';
+    const type = (document.getElementById('pkg-' + idx + '-type') || {}).value || '';
+    const qty = (document.getElementById('pkg-' + idx + '-qty') || {}).value || '';
+    const unit = (document.getElementById('pkg-' + idx + '-unit') || {}).value || 'lb';
+    const harvestIds = (document.getElementById('pkg-' + idx + '-harvestIds') || {}).value || '';
+    const uid = (document.getElementById('pkg-' + idx + '-uid') || {}).value || '';
 
-  // Determine the target sheet and build rows
-  for (const pkg of m.packages) {
     let sheetKey, rowData;
 
-    if (m.isNursery) {
+    if (direction === 'nursery') {
       sheetKey = 'nursery2025';
       rowData = {
         garden: new Date().getFullYear().toString(),
-        date: dateForSheet,
-        harvest_id: '',
-        strain: pkg.strain,
-        origin: '',
-        type: pkg.type || 'Clones',
-        quantity___lbs_out_type: pkg.quantity,
-        manifest_no_in: m.manifestNo,
-        invoice_no: '',
-        transferred_to: m.destination,
-        from: m.originEntity,
-        purpose: '',
-        notes: 'Scanned from manifest. UID: ' + (pkg.packageUid || ''),
-        _submittedBy: 'Manifest Scanner'
+        date: dateForSheet, harvest_id: '', strain: strain.trim(), origin: '',
+        type: type.trim() || 'Clones', quantity___lbs_out_type: qty,
+        manifest_no_in: manifestNo, invoice_no: '',
+        transferred_to: destinationEntity, from: originEntity,
+        purpose: '', notes: 'Scanned from manifest. UID: ' + uid,
+        _submittedBy: 'Manifest Scanner v2'
       };
-    } else if (m.direction === 'inbound') {
+    } else if (direction === 'inbound') {
       sheetKey = 'inbound';
       rowData = {
         garden: new Date().getFullYear().toString(),
-        date: dateForSheet,
-        harvest_id: pkg.harvestIds.join(', '),
-        strain: pkg.strain,
-        type: pkg.type || '',
-        quantity___lbs_out_type: pkg.quantity,
-        manifest_no_in: m.manifestNo,
-        invoice_no: '',
-        transferred_to: '',
-        from: m.originEntity,
-        purpose: '',
-        notes: 'Scanned from manifest. UID: ' + (pkg.packageUid || ''),
-        _submittedBy: 'Manifest Scanner'
+        date: dateForSheet, harvest_id: harvestIds.trim(), strain: strain.trim(),
+        type: type.trim(), quantity___lbs_out_type: qty,
+        manifest_no_in: manifestNo, invoice_no: '', transferred_to: '',
+        from: originEntity, purpose: '',
+        notes: 'Scanned from manifest. UID: ' + uid,
+        _submittedBy: 'Manifest Scanner v2'
       };
     } else {
-      // Outbound
       sheetKey = 'outbound';
       rowData = {
         garden: new Date().getFullYear().toString(),
-        date: dateForSheet,
-        harvest_id: pkg.harvestIds.join(', '),
-        strain: pkg.strain,
-        type: pkg.type || '',
-        quantity___lbs_out_type: pkg.quantity,
-        manifest_no_out: m.manifestNo,
-        invoice_no: '',
-        transferred_to: m.destination,
-        sold_to: m.destination,
-        purpose: 'Bulk Sale',
-        notes: 'Scanned from manifest. UID: ' + (pkg.packageUid || ''),
-        _submittedBy: 'Manifest Scanner'
+        date: dateForSheet, harvest_id: harvestIds.trim(), strain: strain.trim(),
+        type: type.trim(), quantity___lbs_out_type: qty,
+        manifest_no_out: manifestNo, invoice_no: '',
+        transferred_to: destinationEntity, sold_to: destinationEntity,
+        purpose: 'Bulk Sale', notes: 'Scanned from manifest. UID: ' + uid,
+        _submittedBy: 'Manifest Scanner v2'
       };
     }
 
-    // Post to sheet
     const endpoint = getEndpoint();
     if (!endpoint) {
       offlineQueue.push({ sheet: sheetKey, data: rowData, timestamp: new Date().toISOString() });
@@ -1478,18 +1348,17 @@ async function sendAllPackagesToSheet() {
 
     try {
       const res = await fetch(endpoint, {
-        method: 'POST',
+        method: 'POST', redirect: 'follow',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ sheet: sheetKey, data: rowData })
       });
-      const result = await res.json();
-      if (result.success) {
-        successCount++;
-      } else {
-        errorMsg = result.error;
+      let result;
+      try { result = await res.json(); } catch (jsonErr) {
+        if (res.ok || res.status === 0 || res.redirected) { successCount++; continue; }
+        throw jsonErr;
       }
+      if (result.success) { successCount++; } else { errorMsg = result.error; }
     } catch (e) {
-      // Queue it
       offlineQueue.push({ sheet: sheetKey, data: rowData, timestamp: new Date().toISOString() });
       localStorage.setItem('shf_queue', JSON.stringify(offlineQueue));
       updateQueueBadge();
@@ -1500,24 +1369,27 @@ async function sendAllPackagesToSheet() {
   btn.disabled = false;
   btn.textContent = '✅ Send All to Flower Tracker';
 
-  if (successCount === m.packages.length) {
+  if (successCount === total) {
     const target = getEndpoint() ? 'Flower Tracker' : 'offline queue';
     showStatus('scan-status', 'success', '✅ ' + successCount + ' package(s) sent to ' + target + '!');
   } else if (successCount > 0) {
-    showStatus('scan-status', 'info', '⚠️ ' + successCount + '/' + m.packages.length + ' sent. Error: ' + errorMsg);
+    showStatus('scan-status', 'info', '⚠️ ' + successCount + '/' + total + ' sent. Error: ' + errorMsg);
   } else {
     showStatus('scan-status', 'error', '❌ Failed to send: ' + errorMsg);
   }
 }
 
+// ============================================================
+// MANIFEST SCANNER — RESET
+// ============================================================
 function resetScanner() {
-  parsedManifest = null;
   document.getElementById('parsedResults').classList.remove('active');
   document.getElementById('imagePreview').classList.remove('visible');
   document.getElementById('cameraPlaceholder').style.display = 'flex';
   document.getElementById('scan-status').className = 'status';
   document.getElementById('scan-status').innerHTML = '';
   document.getElementById('captureControls').style.display = 'flex';
+  document.getElementById('packagesList').innerHTML = '';
 }
 
 // ============================================================
