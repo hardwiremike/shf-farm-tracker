@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SHF Farm">
+<title>SHF Farm Tracker</title>
+<link rel="manifest" href="manifest.json">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green: #2D5016; --green-light: #4A7C28; --green-bg: #F0F7E8;
+  --gold: #B8860B; --gold-light: #DAA520;
+  --white: #FFFFFF; --gray-50: #F9FAFB; --gray-100: #F3F4F6;
+  --gray-200: #E5E7EB; --gray-300: #D1D5DB; --gray-500: #6B7280;
+  --gray-700: #374151; --gray-900: #111827;
+  --red: #DC2626; --red-bg: #FEF2F2;
+  --blue: #2563EB; --blue-bg: #EFF6FF;
+  --purple: #7C3AED; --purple-bg: #F5F3FF;
+  --radius: 12px; --shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--gray-50); color: var(--gray-900); min-height: 100vh; padding-bottom: 100px; }
+.header { background: var(--green); color: white; padding: 16px 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.header h1 { font-size: 20px; font-weight: 700; }
+.header .subtitle { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+.back-btn { background: none; border: none; color: white; font-size: 16px; cursor: pointer; padding: 4px 0; margin-bottom: 4px; display: none; }
+.back-btn.visible { display: block; }
+
+/* Home screen */
+.home { padding: 20px; }
+.home h2 { font-size: 15px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+.card-grid { display: grid; gap: 12px; }
+.card { background: white; border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); cursor: pointer; border: 2px solid transparent; transition: all 0.15s; display: flex; align-items: center; gap: 16px; }
+.card:active { transform: scale(0.98); border-color: var(--green); }
+.card-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+.card-icon.outbound { background: #DBEAFE; }
+.card-icon.nursery { background: #D1FAE5; }
+.card-icon.extraction { background: #FEF3C7; }
+.card-icon.inbound { background: #FCE7F3; }
+.card-icon.scan { background: #EDE9FE; }
+.card h3 { font-size: 17px; font-weight: 600; }
+.card p { font-size: 13px; color: var(--gray-500); margin-top: 2px; }
+
+/* Forms */
+.form-screen { padding: 20px; display: none; }
+.form-screen.active { display: block; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--gray-700); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 14px 12px; border: 2px solid var(--gray-200); border-radius: 10px;
+  font-size: 16px; background: white; color: var(--gray-900); -webkit-appearance: none;
+  transition: border-color 0.15s;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none; border-color: var(--green); background: var(--green-bg);
+}
+.form-group textarea { min-height: 80px; resize: vertical; }
+.form-group .hint { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+
+/* Searchable dropdown */
+.search-select { position: relative; }
+.search-select input { padding-right: 36px; }
+.search-select .dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid var(--green); border-radius: 0 0 10px 10px; max-height: 200px; overflow-y: auto; z-index: 50; display: none; box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+.search-select .dropdown.open { display: block; }
+.search-select .dropdown-item { padding: 12px; cursor: pointer; font-size: 15px; border-bottom: 1px solid var(--gray-100); }
+.search-select .dropdown-item:active, .search-select .dropdown-item.highlighted { background: var(--green-bg); }
+.search-select .add-new { color: var(--green); font-weight: 600; }
+
+/* Type chips */
+.chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { padding: 10px 16px; border-radius: 20px; border: 2px solid var(--gray-200); background: white; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+.chip.selected { background: var(--green); color: white; border-color: var(--green); }
+.chip:active { transform: scale(0.95); }
+
+/* Quantity input */
+.qty-input { display: flex; align-items: center; gap: 12px; }
+.qty-input input { text-align: center; font-size: 24px; font-weight: 700; flex: 1; }
+.qty-btn { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--gray-200); background: white; font-size: 24px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.qty-btn:active { background: var(--green-bg); border-color: var(--green); }
+
+/* Submit button */
+.submit-btn { width: 100%; padding: 18px; border: none; border-radius: var(--radius); font-size: 18px; font-weight: 700; cursor: pointer; margin-top: 24px; transition: all 0.15s; }
+.submit-btn.primary { background: var(--green); color: white; }
+.submit-btn.primary:active { background: var(--green-light); transform: scale(0.98); }
+.submit-btn.secondary { background: var(--purple); color: white; }
+.submit-btn.secondary:active { background: #6D28D9; transform: scale(0.98); }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Status messages */
+.status { padding: 14px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; font-weight: 500; display: none; }
+.status.success { display: block; background: #D1FAE5; color: #065F46; }
+.status.error { display: block; background: var(--red-bg); color: var(--red); }
+.status.info { display: block; background: var(--blue-bg); color: var(--blue); }
+
+/* Offline queue badge */
+.queue-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--gold); color: white; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.queue-badge.empty { display: none; }
+
+/* Settings */
+.settings-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: white; border-bottom: 1px solid var(--gray-200); }
+.settings-bar .endpoint-status { font-size: 12px; }
+.settings-bar .endpoint-status.connected { color: var(--green); }
+.settings-bar .endpoint-status.disconnected { color: var(--red); }
+.config-panel { padding: 20px; background: var(--gray-50); display: none; }
+.config-panel.open { display: block; }
+.config-panel input { width: 100%; padding: 12px; border: 2px solid var(--gray-200); border-radius: 8px; font-size: 14px; font-family: monospace; }
+.config-panel .save-btn { margin-top: 12px; padding: 12px 24px; background: var(--green); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+
+/* Recent entries */
+.recent-list { margin-top: 20px; }
+.recent-item { background: white; padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; box-shadow: var(--shadow); }
+.recent-item .strain { font-weight: 600; font-size: 15px; }
+.recent-item .meta { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+
+/* Loading */
+.spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid var(--gray-200); border-top: 3px solid var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================ */
+/* MANIFEST SCANNER STYLES */
+/* ============================================================ */
+.scan-screen { padding: 20px; display: none; }
+.scan-screen.active { display: block; }
+
+.camera-area {
+  position: relative; width: 100%; aspect-ratio: 3/4; background: var(--gray-900);
+  border-radius: var(--radius); overflow: hidden; margin-bottom: 16px;
+}
+.camera-area video { width: 100%; height: 100%; object-fit: cover; }
+.camera-area canvas { display: none; }
+.camera-area .overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.camera-area .overlay .frame {
+  width: 90%; height: 85%; border: 2px dashed rgba(255,255,255,0.5); border-radius: 8px;
+}
+.camera-placeholder {
+  width: 100%; height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; color: white; gap: 12px;
+}
+.camera-placeholder .cam-icon { font-size: 48px; }
+.camera-placeholder p { font-size: 14px; opacity: 0.7; text-align: center; padding: 0 20px; }
+
+.capture-controls { display: flex; gap: 12px; margin-bottom: 20px; }
+.capture-btn {
+  flex: 1; padding: 16px; border: none; border-radius: var(--radius);
+  font-size: 16px; font-weight: 700; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; gap: 8px;
+}
+.capture-btn.camera { background: var(--purple); color: white; }
+.capture-btn.camera:active { background: #6D28D9; }
+.capture-btn.gallery { background: white; color: var(--gray-700); border: 2px solid var(--gray-200); }
+.capture-btn.gallery:active { background: var(--gray-100); }
+
+.processing-indicator {
+  text-align: center; padding: 40px 20px; display: none;
+}
+.processing-indicator.active { display: block; }
+.processing-indicator .big-spinner {
+  width: 48px; height: 48px; border: 4px solid var(--gray-200);
+  border-top: 4px solid var(--purple); border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+}
+.processing-indicator p { font-size: 15px; color: var(--gray-700); }
+.processing-indicator .progress-text { font-size: 13px; color: var(--gray-500); margin-top: 8px; }
+
+/* Parsed results card */
+.parsed-results { display: none; }
+.parsed-results.active { display: block; }
+.direction-badge {
+  display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 14px;
+  font-weight: 700; margin-bottom: 16px;
+}
+.direction-badge.outbound { background: #DBEAFE; color: #1E40AF; }
+.direction-badge.inbound { background: #D1FAE5; color: #065F46; }
+.direction-badge.nursery { background: #FEF3C7; color: #92400E; }
+
+.parsed-card {
+  background: white; border-radius: var(--radius); padding: 16px;
+  box-shadow: var(--shadow); margin-bottom: 12px; border-left: 4px solid var(--purple);
+}
+.parsed-card h4 { font-size: 13px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 8px; }
+.parsed-field { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-100); font-size: 14px; }
+.parsed-field:last-child { border-bottom: none; }
+.parsed-field .label { color: var(--gray-500); flex-shrink: 0; margin-right: 12px; }
+.parsed-field .value { font-weight: 600; text-align: right; word-break: break-word; }
+
+.package-card {
+  background: white; border-radius: var(--radius); padding: 16px;
+  box-shadow: var(--shadow); margin-bottom: 12px; border-left: 4px solid var(--green);
+}
+.package-card .pkg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.package-card .pkg-num { font-size: 12px; color: var(--gray-500); font-weight: 600; }
+.package-card .pkg-strain { font-size: 17px; font-weight: 700; color: var(--green); }
+.package-card .pkg-details { display: flex; gap: 16px; flex-wrap: wrap; }
+.package-card .pkg-detail { font-size: 13px; }
+.package-card .pkg-detail span { font-weight: 600; }
+
+.action-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+.action-buttons .submit-btn { margin-top: 0; }
+
+/* Image preview */
+.image-preview { width: 100%; border-radius: var(--radius); margin-bottom: 16px; display: none; }
+.image-preview.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <button class="back-btn" id="backBtn" onclick="goHome()">← Back</button>
+  <h1 id="headerTitle">SHF Farm Tracker</h1>
+  <div class="subtitle" id="headerSubtitle">Sonoma Hills Farm</div>
+</div>
+
+<div class="settings-bar">
+  <div>
+    <span class="endpoint-status" id="connStatus">⚙️ Tap to configure</span>
+    <span class="queue-badge empty" id="queueBadge">📤 <span id="queueCount">0</span> queued</span>
+  </div>
+  <button onclick="toggleConfig()" style="background:none;border:none;font-size:20px;cursor:pointer;">⚙️</button>
+</div>
+
+<div class="config-panel" id="configPanel">
+  <div class="form-group">
+    <label>Google Apps Script Web App URL</label>
+    <input type="url" id="endpointUrl" placeholder="https://script.google.com/macros/s/xxx/exec">
+    <div class="hint">Deploy the Apps Script and paste the URL here</div>
+  </div>
+  <button class="save-btn" onclick="saveEndpoint()">Save & Connect</button>
+</div>
+
+<!-- HOME SCREEN -->
+<div id="homeScreen" class="home">
+  <h2>What are you logging?</h2>
+  <div class="card-grid">
+    <div class="card" onclick="openForm('scan')" style="border: 2px solid var(--purple);">
+      <div class="card-icon scan">📷</div>
+      <div><h3>Scan Manifest</h3><p>Take a photo — auto-fill your entry</p></div>
+    </div>
+    <div class="card" onclick="openForm('outbound')">
+      <div class="card-icon outbound">📦</div>
+      <div><h3>Outbound Sale</h3><p>Bulk flower sales & co-packer transfers</p></div>
+    </div>
+    <div class="card" onclick="openForm('nursery')">
+      <div class="card-icon nursery">🌱</div>
+      <div><h3>Nursery Inbound</h3><p>Clones, seeds, tissue culture arrivals</p></div>
+    </div>
+    <div class="card" onclick="openForm('extraction')">
+      <div class="card-icon extraction">🧪</div>
+      <div><h3>Extraction Send-Out</h3><p>Flower sent to extraction partners</p></div>
+    </div>
+    <div class="card" onclick="openForm('inbound')">
+      <div class="card-icon inbound">↩️</div>
+      <div><h3>Inbound / Return</h3><p>Returns & outside processing</p></div>
+    </div>
+  </div>
+
+  <div class="recent-list" id="recentList"></div>
+</div>
+
+<!-- MANIFEST SCANNER SCREEN -->
+<div id="form-scan" class="scan-screen">
+  <div id="scan-status" class="status"></div>
+
+  <!-- Camera / Image Capture -->
+  <div class="camera-area" id="cameraArea">
+    <video id="cameraVideo" autoplay playsinline></video>
+    <canvas id="cameraCanvas"></canvas>
+    <div class="camera-placeholder" id="cameraPlaceholder">
+      <div class="cam-icon">📷</div>
+      <p>Snap a photo of the Metrc manifest or pick one from your gallery</p>
+    </div>
+    <div class="overlay" id="cameraOverlay" style="display:none;">
+      <div class="frame"></div>
+    </div>
+  </div>
+
+  <img id="imagePreview" class="image-preview" alt="Captured manifest">
+
+  <div class="capture-controls" id="captureControls">
+    <button class="capture-btn camera" id="snapBtn" onclick="startCamera()">
+      📷 Take Photo
+    </button>
+    <button class="capture-btn gallery" onclick="pickFromGallery()">
+      🖼️ Gallery
+    </button>
+    <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="handleFileSelect(event)">
+  </div>
+
+  <!-- Processing -->
+  <div class="processing-indicator" id="processingIndicator">
+    <div class="big-spinner"></div>
+    <p>Reading manifest...</p>
+    <div class="progress-text" id="ocrProgress">Loading OCR engine</div>
+  </div>
+
+  <!-- Parsed Results -->
+  <div class="parsed-results" id="parsedResults">
+    <div id="directionBadge" class="direction-badge outbound">OUTBOUND SALE</div>
+
+    <div class="parsed-card">
+      <h4>Manifest Info</h4>
+      <div class="parsed-field"><span class="label">Manifest #</span><span class="value" id="parsed-manifestNo">—</span></div>
+      <div class="parsed-field"><span class="label">Date</span><span class="value" id="parsed-date">—</span></div>
+      <div class="parsed-field"><span class="label">From</span><span class="value" id="parsed-from">—</span></div>
+      <div class="parsed-field"><span class="label">To</span><span class="value" id="parsed-to">—</span></div>
+    </div>
+
+    <div id="packagesList"></div>
+
+    <div class="action-buttons">
+      <button class="submit-btn secondary" onclick="sendAllPackagesToSheet()">
+        ✅ Send All to Flower Tracker
+      </button>
+      <button class="submit-btn primary" onclick="resetScanner()">
+        📷 Scan Another
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- OUTBOUND FORM -->
+<div id="form-outbound" class="form-screen">
+  <div id="outbound-status" class="status"></div>
+
+  <div class="form-group">
+    <label>Garden (Year)</label>
+    <div class="chip-group" id="gardenChips">
+      <div class="chip selected" data-value="2025" onclick="selectChip(this, 'gardenChips')">2025</div>
+      <div class="chip" data-value="2024" onclick="selectChip(this, 'gardenChips')">2024</div>
+      <div class="chip" data-value="2023" onclick="selectChip(this, 'gardenChips')">2023</div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Date</label>
+    <input type="date" id="outbound-date">
+  </div>
+
+  <div class="form-group">
+    <label>Harvest ID</label>
+    <div class="search-select">
+      <input type="text" id="outbound-harvestId" placeholder="e.g. SHF_PJ_091225" autocomplete="off">
+      <div class="dropdown" id="harvestId-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Strain</label>
+    <div class="search-select">
+      <input type="text" id="outbound-strain" placeholder="Start typing..." autocomplete="off">
+      <div class="dropdown" id="strain-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Type</label>
+    <div class="chip-group" id="typeChips"></div>
+  </div>
+
+  <div class="form-group">
+    <label>Quantity (Lbs)</label>
+    <div class="qty-input">
+      <button class="qty-btn" onclick="adjustQty('outbound-qty', -1)">−</button>
+      <input type="number" id="outbound-qty" value="" placeholder="0" step="0.01" inputmode="decimal">
+      <button class="qty-btn" onclick="adjustQty('outbound-qty', 1)">+</button>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Manifest No Out</label>
+    <input type="text" id="outbound-manifest" placeholder="Metrc manifest number" inputmode="numeric">
+  </div>
+
+  <div class="form-group">
+    <label>Invoice No</label>
+    <input type="text" id="outbound-invoice" placeholder="Invoice number (optional)">
+  </div>
+
+  <div class="form-group">
+    <label>Transferred To</label>
+    <div class="search-select">
+      <input type="text" id="outbound-transferredTo" placeholder="Distribution partner..." autocomplete="off">
+      <div class="dropdown" id="transferredTo-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Sold To</label>
+    <div class="search-select">
+      <input type="text" id="outbound-soldTo" placeholder="End buyer..." autocomplete="off">
+      <div class="dropdown" id="soldTo-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Purpose</label>
+    <div class="search-select">
+      <input type="text" id="outbound-purpose" placeholder="Bulk Sale, Transfer to Co-Packer..." autocomplete="off">
+      <div class="dropdown" id="purpose-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Notes</label>
+    <textarea id="outbound-notes" placeholder="Optional notes..."></textarea>
+  </div>
+
+  <button class="submit-btn primary" onclick="submitOutbound()">Submit Outbound Entry</button>
+</div>
+
+<!-- NURSERY INBOUND FORM -->
+<div id="form-nursery" class="form-screen">
+  <div id="nursery-status" class="status"></div>
+
+  <div class="form-group">
+    <label>Garden (Year)</label>
+    <div class="chip-group" id="nurseryGardenChips">
+      <div class="chip selected" data-value="2025" onclick="selectChip(this, 'nurseryGardenChips')">2025</div>
+      <div class="chip" data-value="2026" onclick="selectChip(this, 'nurseryGardenChips')">2026</div>
+    </div>
+  </div>
+
+  <div class="form-group"><label>Date</label><input type="date" id="nursery-date"></div>
+
+  <div class="form-group">
+    <label>Strain</label>
+    <div class="search-select">
+      <input type="text" id="nursery-strain" placeholder="Start typing..." autocomplete="off">
+      <div class="dropdown" id="nurseryStrain-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Origin</label>
+    <input type="text" id="nursery-origin" placeholder="Seed source or mother plant origin">
+  </div>
+
+  <div class="form-group">
+    <label>Type</label>
+    <div class="chip-group" id="nurseryTypeChips">
+      <div class="chip selected" data-value="Clones" onclick="selectChip(this, 'nurseryTypeChips')">Clones</div>
+      <div class="chip" data-value="Seeds" onclick="selectChip(this, 'nurseryTypeChips')">Seeds</div>
+      <div class="chip" data-value="Tissue Culture" onclick="selectChip(this, 'nurseryTypeChips')">Tissue Culture</div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Quantity</label>
+    <div class="qty-input">
+      <button class="qty-btn" onclick="adjustQty('nursery-qty', -1)">−</button>
+      <input type="number" id="nursery-qty" value="" placeholder="0" inputmode="numeric">
+      <button class="qty-btn" onclick="adjustQty('nursery-qty', 1)">+</button>
+    </div>
+  </div>
+
+  <div class="form-group"><label>Manifest No In</label><input type="text" id="nursery-manifest" placeholder="Metrc manifest number" inputmode="numeric"></div>
+
+  <div class="form-group">
+    <label>From</label>
+    <div class="search-select">
+      <input type="text" id="nursery-from" placeholder="Node Labs, Humboldt Seed Co..." autocomplete="off">
+      <div class="dropdown" id="nurseryFrom-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group"><label>Purpose</label><input type="text" id="nursery-purpose" placeholder="For 2025 Garden"></div>
+  <div class="form-group"><label>Notes</label><textarea id="nursery-notes" placeholder="Optional notes..."></textarea></div>
+
+  <button class="submit-btn primary" onclick="submitNursery()">Submit Nursery Inbound</button>
+</div>
+
+<!-- EXTRACTION FORM -->
+<div id="form-extraction" class="form-screen">
+  <div id="extraction-status" class="status"></div>
+
+  <div class="form-group">
+    <label>Garden (Year)</label>
+    <div class="chip-group" id="extractionGardenChips">
+      <div class="chip selected" data-value="2025" onclick="selectChip(this, 'extractionGardenChips')">2025</div>
+      <div class="chip" data-value="2024" onclick="selectChip(this, 'extractionGardenChips')">2024</div>
+    </div>
+  </div>
+
+  <div class="form-group"><label>Date</label><input type="date" id="extraction-date"></div>
+
+  <div class="form-group">
+    <label>Harvest ID</label>
+    <div class="search-select">
+      <input type="text" id="extraction-harvestId" placeholder="e.g. SHF_PJ_091225" autocomplete="off">
+      <div class="dropdown" id="extractionHarvestId-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Strain</label>
+    <div class="search-select">
+      <input type="text" id="extraction-strain" placeholder="Start typing..." autocomplete="off">
+      <div class="dropdown" id="extractionStrain-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Type</label>
+    <div class="chip-group" id="extractionTypeChips">
+      <div class="chip selected" data-value="Bucked Tops" onclick="selectChip(this, 'extractionTypeChips')">Bucked Tops</div>
+      <div class="chip" data-value="Trim" onclick="selectChip(this, 'extractionTypeChips')">Trim</div>
+      <div class="chip" data-value="Fresh Frozen" onclick="selectChip(this, 'extractionTypeChips')">Fresh Frozen</div>
+      <div class="chip" data-value="Smalls" onclick="selectChip(this, 'extractionTypeChips')">Smalls</div>
+    </div>
+  </div>
+
+  <div class="form-group"><label>Quantity / Lbs Out</label>
+    <div class="qty-input">
+      <button class="qty-btn" onclick="adjustQty('extraction-qty', -1)">−</button>
+      <input type="number" id="extraction-qty" value="" placeholder="0" step="0.01" inputmode="decimal">
+      <button class="qty-btn" onclick="adjustQty('extraction-qty', 1)">+</button>
+    </div>
+  </div>
+
+  <div class="form-group"><label>Extraction Total (grams)</label><input type="text" id="extraction-total" placeholder="e.g. 690 g"></div>
+  <div class="form-group"><label>Manifest No Out</label><input type="text" id="extraction-manifest" placeholder="Metrc manifest number" inputmode="numeric"></div>
+  <div class="form-group"><label>Invoice No</label><input type="text" id="extraction-invoice" placeholder="Invoice number"></div>
+
+  <div class="form-group">
+    <label>Transferred To</label>
+    <div class="search-select">
+      <input type="text" id="extraction-transferredTo" placeholder="Distribution partner..." autocomplete="off">
+      <div class="dropdown" id="extractionTransferredTo-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Sold To</label>
+    <div class="search-select">
+      <input type="text" id="extraction-soldTo" placeholder="End buyer..." autocomplete="off">
+      <div class="dropdown" id="extractionSoldTo-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group"><label>Purpose</label><input type="text" id="extraction-purpose" placeholder="Bulk Sale"></div>
+  <div class="form-group"><label>Notes</label><textarea id="extraction-notes" placeholder="Optional notes..."></textarea></div>
+
+  <button class="submit-btn primary" onclick="submitExtraction()">Submit Extraction Entry</button>
+</div>
+
+<!-- INBOUND / RETURN FORM -->
+<div id="form-inbound" class="form-screen">
+  <div id="inbound-status" class="status"></div>
+
+  <div class="form-group">
+    <label>Garden (Year)</label>
+    <div class="chip-group" id="inboundGardenChips">
+      <div class="chip selected" data-value="2025" onclick="selectChip(this, 'inboundGardenChips')">2025</div>
+      <div class="chip" data-value="2024" onclick="selectChip(this, 'inboundGardenChips')">2024</div>
+    </div>
+  </div>
+
+  <div class="form-group"><label>Date</label><input type="date" id="inbound-date"></div>
+
+  <div class="form-group">
+    <label>Harvest ID</label>
+    <div class="search-select">
+      <input type="text" id="inbound-harvestId" placeholder="e.g. SHF_PJ_091225" autocomplete="off">
+      <div class="dropdown" id="inboundHarvestId-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Strain</label>
+    <div class="search-select">
+      <input type="text" id="inbound-strain" placeholder="Start typing..." autocomplete="off">
+      <div class="dropdown" id="inboundStrain-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Type</label>
+    <div class="chip-group" id="inboundTypeChips">
+      <div class="chip selected" data-value="Tops" onclick="selectChip(this, 'inboundTypeChips')">Tops</div>
+      <div class="chip" data-value="Smalls" onclick="selectChip(this, 'inboundTypeChips')">Smalls</div>
+      <div class="chip" data-value="Trim" onclick="selectChip(this, 'inboundTypeChips')">Trim</div>
+      <div class="chip" data-value="Retail" onclick="selectChip(this, 'inboundTypeChips')">Retail</div>
+    </div>
+  </div>
+
+  <div class="form-group"><label>Quantity / Lbs</label>
+    <div class="qty-input">
+      <button class="qty-btn" onclick="adjustQty('inbound-qty', -1)">−</button>
+      <input type="number" id="inbound-qty" value="" placeholder="0" step="0.01" inputmode="decimal">
+      <button class="qty-btn" onclick="adjustQty('inbound-qty', 1)">+</button>
+    </div>
+  </div>
+
+  <div class="form-group"><label>Manifest No In</label><input type="text" id="inbound-manifest" placeholder="Metrc manifest number" inputmode="numeric"></div>
+  <div class="form-group"><label>Invoice No</label><input type="text" id="inbound-invoice" placeholder="Invoice number"></div>
+  <div class="form-group"><label>From</label><input type="text" id="inbound-from" placeholder="Where is it coming from?"></div>
+  <div class="form-group"><label>Purpose</label><input type="text" id="inbound-purpose" placeholder="Machine work, Returned, etc."></div>
+  <div class="form-group"><label>Notes</label><textarea id="inbound-notes" placeholder="Optional notes..."></textarea></div>
+
+  <button class="submit-btn primary" onclick="submitInbound()">Submit Inbound Entry</button>
+</div>
+
+<!-- Tesseract.js loaded on demand when scanner is used -->
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let dropdownData = null;
+let offlineQueue = JSON.parse(localStorage.getItem('shf_queue') || '[]');
+let currentForm = null;
+let cameraStream = null;
+let parsedManifest = null; // holds the latest scan result
+
+// SHF identifiers for direction detection
+const SHF_NAMES = ['highland canopy', 'the highland canopy', 'shf', 'sonoma hills'];
+
+// ============================================================
+// CONFIG / ENDPOINT
+// ============================================================
+const DEFAULT_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwSOoiFxUiXqtwpLTvSMm7RZ8NHrXnfHblGtk2okkgTYoKH1ZKBjYgjGdKIIULys8Ztug/exec';
+function getEndpoint() { return localStorage.getItem('shf_endpoint') || DEFAULT_ENDPOINT; }
+
+function saveEndpoint() {
+  const url = document.getElementById('endpointUrl').value.trim();
+  localStorage.setItem('shf_endpoint', url);
+  document.getElementById('configPanel').classList.remove('open');
+  updateConnStatus();
+  if (url) loadDropdowns();
+}
+
+function toggleConfig() {
+  const panel = document.getElementById('configPanel');
+  panel.classList.toggle('open');
+  document.getElementById('endpointUrl').value = getEndpoint();
+}
+
+function updateConnStatus() {
+  const el = document.getElementById('connStatus');
+  if (getEndpoint()) {
+    el.textContent = '✅ Connected';
+    el.className = 'endpoint-status connected';
+  } else {
+    el.textContent = '⚙️ Tap to configure';
+    el.className = 'endpoint-status disconnected';
+  }
+  updateQueueBadge();
+}
+
+function updateQueueBadge() {
+  const badge = document.getElementById('queueBadge');
+  const count = document.getElementById('queueCount');
+  if (offlineQueue.length > 0) {
+    badge.classList.remove('empty');
+    count.textContent = offlineQueue.length;
+  } else {
+    badge.classList.add('empty');
+  }
+}
+
+// ============================================================
+// DROPDOWNS
+// ============================================================
+async function loadDropdowns() {
+  const endpoint = getEndpoint();
+  if (!endpoint) return;
+
+  try {
+    const res = await fetch(endpoint + '?action=dropdowns');
+    dropdownData = await res.json();
+    localStorage.setItem('shf_dropdowns', JSON.stringify(dropdownData));
+    setupSearchableDropdowns();
+  } catch (e) {
+    const cached = localStorage.getItem('shf_dropdowns');
+    if (cached) {
+      dropdownData = JSON.parse(cached);
+      setupSearchableDropdowns();
+    }
+  }
+}
+
+function setupSearchableDropdowns() {
+  if (!dropdownData) return;
+
+  // Build type chips for outbound
+  const typeChips = document.getElementById('typeChips');
+  typeChips.innerHTML = '';
+  const commonTypes = ['Tops', 'Trim', 'Smalls', 'Fresh Frozen', 'Bucked Tops', 'Bucked All', 'Mids', 'Bucked Smalls'];
+  commonTypes.forEach((t, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (i === 0 ? ' selected' : '');
+    chip.dataset.value = t;
+    chip.textContent = t;
+    chip.onclick = function() { selectChip(this, 'typeChips'); };
+    typeChips.appendChild(chip);
+  });
+
+  const mappings = [
+    { input: 'outbound-strain', dropdown: 'strain-dropdown', data: dropdownData.strains },
+    { input: 'outbound-harvestId', dropdown: 'harvestId-dropdown', data: dropdownData.harvestIds },
+    { input: 'outbound-transferredTo', dropdown: 'transferredTo-dropdown', data: dropdownData.transferredTo },
+    { input: 'outbound-soldTo', dropdown: 'soldTo-dropdown', data: dropdownData.soldTo },
+    { input: 'outbound-purpose', dropdown: 'purpose-dropdown', data: dropdownData.purposes },
+    { input: 'nursery-strain', dropdown: 'nurseryStrain-dropdown', data: dropdownData.strains },
+    { input: 'nursery-from', dropdown: 'nurseryFrom-dropdown', data: dropdownData.nurserySources },
+    { input: 'extraction-strain', dropdown: 'extractionStrain-dropdown', data: dropdownData.strains },
+    { input: 'extraction-harvestId', dropdown: 'extractionHarvestId-dropdown', data: dropdownData.harvestIds },
+    { input: 'extraction-transferredTo', dropdown: 'extractionTransferredTo-dropdown', data: dropdownData.transferredTo },
+    { input: 'extraction-soldTo', dropdown: 'extractionSoldTo-dropdown', data: dropdownData.soldTo },
+    { input: 'inbound-strain', dropdown: 'inboundStrain-dropdown', data: dropdownData.strains },
+    { input: 'inbound-harvestId', dropdown: 'inboundHarvestId-dropdown', data: dropdownData.harvestIds },
+  ];
+
+  mappings.forEach(m => {
+    const input = document.getElementById(m.input);
+    const dropdown = document.getElementById(m.dropdown);
+    if (!input || !dropdown || !m.data) return;
+
+    input.addEventListener('focus', () => showDropdown(input, dropdown, m.data));
+    input.addEventListener('input', () => showDropdown(input, dropdown, m.data));
+    input.addEventListener('blur', () => setTimeout(() => dropdown.classList.remove('open'), 200));
+  });
+}
+
+function showDropdown(input, dropdown, data) {
+  const val = input.value.toLowerCase();
+  const filtered = val ? data.filter(d => d.toLowerCase().includes(val)).slice(0, 8) : data.slice(0, 8);
+
+  dropdown.innerHTML = '';
+  filtered.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'dropdown-item';
+    div.textContent = item;
+    div.onmousedown = (e) => { e.preventDefault(); input.value = item; dropdown.classList.remove('open'); };
+    dropdown.appendChild(div);
+  });
+
+  if (val && !data.includes(val)) {
+    const addDiv = document.createElement('div');
+    addDiv.className = 'dropdown-item add-new';
+    addDiv.textContent = '+ Add "' + input.value + '"';
+    addDiv.onmousedown = (e) => { e.preventDefault(); dropdown.classList.remove('open'); };
+    dropdown.appendChild(addDiv);
+  }
+
+  dropdown.classList.toggle('open', dropdown.children.length > 0);
+}
+
+// ============================================================
+// FORM NAVIGATION
+// ============================================================
+function openForm(type) {
+  document.getElementById('homeScreen').style.display = 'none';
+  document.querySelectorAll('.form-screen, .scan-screen').forEach(f => f.classList.remove('active'));
+
+  if (type === 'scan') {
+    document.getElementById('form-scan').classList.add('active');
+    document.getElementById('headerTitle').textContent = 'Scan Manifest';
+    document.getElementById('headerSubtitle').textContent = 'Take a photo of the Metrc manifest';
+  } else {
+    document.getElementById('form-' + type).classList.add('active');
+    const titles = { outbound: 'Outbound Sale', nursery: 'Nursery Inbound', extraction: 'Extraction Send-Out', inbound: 'Inbound / Return' };
+    document.getElementById('headerTitle').textContent = titles[type] || 'Entry';
+    document.getElementById('headerSubtitle').textContent = 'New entry';
+    const today = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById(type + '-date');
+    if (dateInput && !dateInput.value) dateInput.value = today;
+  }
+
+  document.getElementById('backBtn').classList.add('visible');
+  currentForm = type;
+}
+
+function goHome() {
+  stopCamera();
+  document.getElementById('homeScreen').style.display = 'block';
+  document.querySelectorAll('.form-screen, .scan-screen').forEach(f => f.classList.remove('active'));
+  document.getElementById('backBtn').classList.remove('visible');
+  document.getElementById('headerTitle').textContent = 'SHF Farm Tracker';
+  document.getElementById('headerSubtitle').textContent = 'Sonoma Hills Farm';
+  currentForm = null;
+}
+
+// ============================================================
+// CHIP SELECTION
+// ============================================================
+function selectChip(el, groupId) {
+  document.querySelectorAll('#' + groupId + ' .chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function getChipValue(groupId) {
+  const selected = document.querySelector('#' + groupId + ' .chip.selected');
+  return selected ? selected.dataset.value : '';
+}
+
+// ============================================================
+// QUANTITY HELPERS
+// ============================================================
+function adjustQty(inputId, delta) {
+  const input = document.getElementById(inputId);
+  const current = parseFloat(input.value) || 0;
+  const newVal = Math.max(0, current + delta);
+  input.value = newVal;
+}
+
+// ============================================================
+// SUBMIT FUNCTIONS
+// ============================================================
+async function submitOutbound() {
+  const data = {
+    garden: getChipValue('gardenChips'),
+    date: document.getElementById('outbound-date').value,
+    harvest_id: document.getElementById('outbound-harvestId').value,
+    strain: document.getElementById('outbound-strain').value,
+    type: getChipValue('typeChips'),
+    quantity___lbs_out_type: document.getElementById('outbound-qty').value,
+    manifest_no_out: document.getElementById('outbound-manifest').value,
+    invoice_no: document.getElementById('outbound-invoice').value,
+    transferred_to: document.getElementById('outbound-transferredTo').value,
+    sold_to: document.getElementById('outbound-soldTo').value,
+    purpose: document.getElementById('outbound-purpose').value,
+    notes: document.getElementById('outbound-notes').value,
+  };
+
+  if (!data.strain || !data.quantity___lbs_out_type) {
+    showStatus('outbound-status', 'error', 'Please fill in at least Strain and Quantity');
+    return;
+  }
+
+  await postEntry('outbound', data, 'outbound-status');
+}
+
+async function submitNursery() {
+  const data = {
+    garden: getChipValue('nurseryGardenChips'),
+    date: document.getElementById('nursery-date').value,
+    harvest_id: '',
+    strain: document.getElementById('nursery-strain').value,
+    origin: document.getElementById('nursery-origin').value,
+    type: getChipValue('nurseryTypeChips'),
+    quantity___lbs_out_type: document.getElementById('nursery-qty').value,
+    manifest_no_in: document.getElementById('nursery-manifest').value,
+    invoice_no: '',
+    transferred_to: 'The Highland Canopy',
+    from: document.getElementById('nursery-from').value,
+    purpose: document.getElementById('nursery-purpose').value,
+    notes: document.getElementById('nursery-notes').value,
+  };
+
+  if (!data.strain || !data.quantity___lbs_out_type) {
+    showStatus('nursery-status', 'error', 'Please fill in at least Strain and Quantity');
+    return;
+  }
+
+  await postEntry('nursery2025', data, 'nursery-status');
+}
+
+async function submitExtraction() {
+  const data = {
+    garden: getChipValue('extractionGardenChips'),
+    date: document.getElementById('extraction-date').value,
+    harvest_id: document.getElementById('extraction-harvestId').value,
+    strain: document.getElementById('extraction-strain').value,
+    type: getChipValue('extractionTypeChips'),
+    quantity___lbs_out_type: document.getElementById('extraction-qty').value,
+    extraction_total: document.getElementById('extraction-total').value,
+    manifest_no_out: document.getElementById('extraction-manifest').value,
+    invoice_no: document.getElementById('extraction-invoice').value,
+    transferred_to: document.getElementById('extraction-transferredTo').value,
+    sold_to: document.getElementById('extraction-soldTo').value,
+    purpose: document.getElementById('extraction-purpose').value,
+    notes: document.getElementById('extraction-notes').value,
+  };
+
+  if (!data.strain || !data.quantity___lbs_out_type) {
+    showStatus('extraction-status', 'error', 'Please fill in at least Strain and Quantity');
+    return;
+  }
+
+  await postEntry('extraction', data, 'extraction-status');
+}
+
+async function submitInbound() {
+  const data = {
+    garden: getChipValue('inboundGardenChips'),
+    date: document.getElementById('inbound-date').value,
+    harvest_id: document.getElementById('inbound-harvestId').value,
+    strain: document.getElementById('inbound-strain').value,
+    type: getChipValue('inboundTypeChips'),
+    quantity___lbs_out_type: document.getElementById('inbound-qty').value,
+    manifest_no_in: document.getElementById('inbound-manifest').value,
+    invoice_no: document.getElementById('inbound-invoice').value,
+    transferred_to: '',
+    from: document.getElementById('inbound-from').value,
+    purpose: document.getElementById('inbound-purpose').value,
+    notes: document.getElementById('inbound-notes').value,
+  };
+
+  if (!data.strain || !data.quantity___lbs_out_type) {
+    showStatus('inbound-status', 'error', 'Please fill in at least Strain and Quantity');
+    return;
+  }
+
+  await postEntry('inbound', data, 'inbound-status');
+}
+
+// ============================================================
+// NETWORK / OFFLINE QUEUE
+// ============================================================
+async function postEntry(sheetKey, data, statusId) {
+  const endpoint = getEndpoint();
+
+  if (!endpoint) {
+    offlineQueue.push({ sheet: sheetKey, data, timestamp: new Date().toISOString() });
+    localStorage.setItem('shf_queue', JSON.stringify(offlineQueue));
+    updateQueueBadge();
+    showStatus(statusId, 'info', '📤 Saved to offline queue — will sync when connected');
+    return;
+  }
+
+  showStatus(statusId, 'info', '<span class="spinner"></span> Submitting...');
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ sheet: sheetKey, data })
+    });
+    let result;
+    try {
+      result = await res.json();
+    } catch (jsonErr) {
+      if (res.ok || res.status === 0 || res.redirected) {
+        showStatus(statusId, 'success', '✅ Submitted successfully!');
+        setTimeout(() => clearCurrentForm(), 1500);
+        return;
+      }
+      throw jsonErr;
+    }
+
+    if (result.success) {
+      showStatus(statusId, 'success', '✅ Added to row ' + result.rowNumber + ' — ' + result.message);
+      setTimeout(() => clearCurrentForm(), 1500);
+    } else {
+      showStatus(statusId, 'error', '❌ Error: ' + result.error);
+    }
+  } catch (e) {
+    console.error('Submit error:', e);
+    offlineQueue.push({ sheet: sheetKey, data, timestamp: new Date().toISOString() });
+    localStorage.setItem('shf_queue', JSON.stringify(offlineQueue));
+    updateQueueBadge();
+    showStatus(statusId, 'info', '📤 Offline — saved to queue. Will sync when back online. Error: ' + e.message);
+  }
+}
+
+async function syncQueue() {
+  if (offlineQueue.length === 0 || !getEndpoint()) return;
+
+  const toSync = [...offlineQueue];
+  offlineQueue = [];
+  localStorage.setItem('shf_queue', JSON.stringify(offlineQueue));
+  updateQueueBadge();
+
+  for (const item of toSync) {
+    try {
+      await fetch(getEndpoint(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ sheet: item.sheet, data: item.data })
+      });
+    } catch (e) {
+      offlineQueue.push(item);
+    }
+  }
+
+  localStorage.setItem('shf_queue', JSON.stringify(offlineQueue));
+  updateQueueBadge();
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function showStatus(id, type, html) {
+  const el = document.getElementById(id);
+  el.className = 'status ' + type;
+  el.innerHTML = html;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearCurrentForm() {
+  if (!currentForm) return;
+  const form = document.getElementById('form-' + currentForm);
+  if (!form) return;
+  form.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(i => i.value = '');
+  form.querySelectorAll('.status').forEach(s => { s.className = 'status'; s.innerHTML = ''; });
+}
+
+// ============================================================
+// MANIFEST SCANNER — CAMERA
+// ============================================================
+async function startCamera() {
+  const video = document.getElementById('cameraVideo');
+  const placeholder = document.getElementById('cameraPlaceholder');
+  const overlay = document.getElementById('cameraOverlay');
+  const snapBtn = document.getElementById('snapBtn');
+
+  // If camera is already running, take the snapshot
+  if (cameraStream) {
+    captureFromCamera();
+    return;
+  }
+
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 2560 } }
+    });
+    video.srcObject = cameraStream;
+    video.style.display = 'block';
+    placeholder.style.display = 'none';
+    overlay.style.display = 'flex';
+    snapBtn.innerHTML = '📸 Snap!';
+
+    // Hide image preview if showing
+    document.getElementById('imagePreview').classList.remove('visible');
+  } catch (err) {
+    showStatus('scan-status', 'error', '❌ Camera access denied. Use Gallery instead.');
+  }
+}
+
+function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  const video = document.getElementById('cameraVideo');
+  video.srcObject = null;
+  video.style.display = 'none';
+  document.getElementById('cameraPlaceholder').style.display = 'flex';
+  document.getElementById('cameraOverlay').style.display = 'none';
+  document.getElementById('snapBtn').innerHTML = '📷 Take Photo';
+}
+
+function captureFromCamera() {
+  const video = document.getElementById('cameraVideo');
+  const canvas = document.getElementById('cameraCanvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+
+  const imageData = canvas.toDataURL('image/png');
+  stopCamera();
+
+  // Show preview
+  const preview = document.getElementById('imagePreview');
+  preview.src = imageData;
+  preview.classList.add('visible');
+
+  // Run OCR
+  processImage(imageData);
+}
+
+function pickFromGallery() {
+  document.getElementById('fileInput').click();
+}
+
+function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  stopCamera();
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const imageData = e.target.result;
+    const preview = document.getElementById('imagePreview');
+    preview.src = imageData;
+    preview.classList.add('visible');
+    processImage(imageData);
+  };
+  reader.readAsDataURL(file);
+
+  // Reset so same file can be selected again
+  event.target.value = '';
+}
+
+// ============================================================
+// MANIFEST SCANNER — OCR + PARSING
+// ============================================================
+async function processImage(imageData) {
+  const controls = document.getElementById('captureControls');
+  const processing = document.getElementById('processingIndicator');
+  const results = document.getElementById('parsedResults');
+  const progressEl = document.getElementById('ocrProgress');
+
+  controls.style.display = 'none';
+  processing.classList.add('active');
+  results.classList.remove('active');
+
+  try {
+    progressEl.textContent = 'Loading OCR engine...';
+
+    // Lazy-load Tesseract.js only when scanner is first used
+    if (typeof Tesseract === 'undefined') {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Could not load OCR engine. Check your internet connection.'));
+        document.head.appendChild(s);
+      });
+    }
+
+    progressEl.textContent = 'Initializing OCR engine...';
+
+    const worker = await Tesseract.createWorker('eng', 1, {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          const pct = Math.round((m.progress || 0) * 100);
+          progressEl.textContent = 'Reading text... ' + pct + '%';
+        }
+      }
+    });
+
+    progressEl.textContent = 'Recognizing text...';
+    const { data: { text } } = await worker.recognize(imageData);
+    await worker.terminate();
+
+    progressEl.textContent = 'Parsing manifest fields...';
+
+    // Parse the OCR text
+    parsedManifest = parseManifestText(text);
+
+    // Display results
+    displayParsedResults(parsedManifest);
+
+    processing.classList.remove('active');
+    results.classList.add('active');
+    controls.style.display = 'flex';
+
+  } catch (err) {
+    processing.classList.remove('active');
+    controls.style.display = 'flex';
+    showStatus('scan-status', 'error', '❌ OCR failed: ' + err.message + '. Try a clearer photo.');
+  }
+}
+
+function parseManifestText(text) {
+  // Normalize text
+  const t = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = t.split('\n').map(l => l.trim()).filter(Boolean);
+  const fullText = lines.join(' ');
+
+  // --- Manifest Number ---
+  let manifestNo = '';
+  const mnMatch = fullText.match(/Manifest\s*(?:No\.?|Number)\s*[:\s]*(\d{7,12})/i);
+  if (mnMatch) manifestNo = mnMatch[1];
+
+  // --- Date Created ---
+  let dateCreated = '';
+  const dcMatch = fullText.match(/Date\s*Created\s*[:\s]*([\d]{1,2}\/[\d]{1,2}\/[\d]{4})/i);
+  if (dcMatch) dateCreated = dcMatch[1];
+  if (!dateCreated) {
+    const dcMatch2 = fullText.match(/Date\s*Created\s*[:\s]*([\d]{4}-[\d]{2}-[\d]{2})/i);
+    if (dcMatch2) dateCreated = dcMatch2[1];
+  }
+
+  // --- Originating Entity ---
+  let originEntity = '';
+  const oeMatch = fullText.match(/Originating\s*Entity\s*[:\s]*([^\n]+?)(?:\s*For\s*Agency|\s*Originating\s*License)/i);
+  if (oeMatch) originEntity = oeMatch[1].trim();
+
+  // --- Destination ---
+  let destination = '';
+  const destMatch = fullText.match(/1\.\s*Destination\s*[:\s]*([^\n]+?)(?:\s*Destination\s*Phone)/i);
+  if (destMatch) destination = destMatch[1].trim();
+  if (!destination) {
+    const destMatch2 = fullText.match(/Destination\s+([A-Z][^\n,]+?)(?:\s*Destination\s*Phone|\s*DCC|\s*CCL)/i);
+    if (destMatch2) destination = destMatch2[1].trim();
+  }
+
+  // --- Direction detection ---
+  const originLower = originEntity.toLowerCase();
+  const destLower = destination.toLowerCase();
+  const isOriginSHF = SHF_NAMES.some(n => originLower.includes(n));
+  const isDestSHF = SHF_NAMES.some(n => destLower.includes(n));
+
+  let direction = 'outbound'; // default
+  if (isDestSHF && !isOriginSHF) direction = 'inbound';
+  if (isOriginSHF && !isDestSHF) direction = 'outbound';
+
+  // --- Packages ---
+  const packages = parsePackages(fullText, t);
+
+  // Detect if nursery (clones, seeds, tissue culture)
+  const nurseryKeywords = ['clone', 'seed', 'tissue culture', 'immature', 'nursery', 'propagat'];
+  const isNursery = direction === 'inbound' && packages.some(p =>
+    nurseryKeywords.some(kw => (p.itemName + ' ' + p.type).toLowerCase().includes(kw))
+  );
+
+  return {
+    manifestNo,
+    dateCreated,
+    originEntity,
+    destination,
+    direction,
+    isNursery,
+    packages,
+    rawText: text
+  };
+}
+
+function parsePackages(fullText, rawText) {
+  const packages = [];
+
+  // Match package blocks — look for "N. Package | Shipped" pattern
+  // Metrc manifests list packages as numbered items with Item Name and Quantity
+  const pkgRegex = /(\d+)\.\s*Package\s*\|\s*Shipped/gi;
+  let match;
+  const pkgPositions = [];
+
+  while ((match = pkgRegex.exec(fullText)) !== null) {
+    pkgPositions.push({ num: parseInt(match[1]), index: match.index });
+  }
+
+  for (let i = 0; i < pkgPositions.length; i++) {
+    const start = pkgPositions[i].index;
+    const end = (i + 1 < pkgPositions.length) ? pkgPositions[i + 1].index : fullText.length;
+    const block = fullText.substring(start, end);
+
+    // Package UID (1A406...)
+    let packageUid = '';
+    const uidMatch = block.match(/(1A4\w{20,30})/i);
+    if (uidMatch) packageUid = uidMatch[1];
+
+    // Item Name - appears after Production Batch No. heading
+    let itemName = '';
+    try {
+      var inRe = new RegExp('(?:Item\\s*Name|Batch\\s*No\\.)\\s*[:\\s]*(?:Quantity)?\\s*(?:1A4\\w+\\s*)?(?:Lab\\s*Test[^\\n]*\\s*)?(?:Contains[^\\n]*\\s*)?([A-Z][A-Za-z\\s\\-#\\d]+?(?:Bulk\\s*\\w+|Clones?|Seeds?|Tissue\\s*Culture|Flower|Trim|Smalls|Leaf)[^\\n]*)', 'i');
+      var inMatch = block.match(inRe);
+      if (inMatch) {
+        itemName = inMatch[1].trim().replace(/\s+/g, ' ');
+      }
+    } catch(e) {}
+    // Fallback: look for strain-like pattern near "Bulk" or "Clone"
+    if (!itemName) {
+      try {
+        var fbRe = new RegExp('([A-Z][A-Za-z\\s\\-#\\d]+?)\\s*-\\s*(Bulk\\s*\\w+|Clones?|Seeds?|Tissue\\s*Culture)', 'i');
+        var fallback = block.match(fbRe);
+        if (fallback) itemName = fallback[0].trim();
+      } catch(e) {}
+    }
+
+    // Quantity — "Shp: XX.XX lb" or "Shp: XX ea"
+    let quantity = '';
+    let unit = 'lb';
+    const qtyMatch = block.match(/Shp:\s*([\d,]+\.?\d*)\s*(lb|ea|g|oz|kg|each|ct)/i);
+    if (qtyMatch) {
+      quantity = qtyMatch[1].replace(/,/g, '');
+      unit = qtyMatch[2].toLowerCase();
+    }
+
+    // Strain — from "Strain: XYZ" in Item Details
+    let strain = '';
+    const strainMatch = block.match(/Strain:\s*([A-Za-z\s\-#\d'\.]+?)(?:\s*Source|\s*$)/i);
+    if (strainMatch) strain = strainMatch[1].trim();
+    // Fallback from item name: "Strain Name - Bulk Type"
+    if (!strain && itemName) {
+      const s = itemName.match(/^(.+?)\s*-\s*(?:Bulk|Clone|Seed|Tissue)/i);
+      if (s) strain = s[1].trim();
+    }
+
+    // Type — extract from item name: "Bulk Trim (Leaf)" → Trim, "Bulk Flower (Flower)" → Tops
+    let type = '';
+    if (itemName) {
+      const typeMatch = itemName.match(/Bulk\s*(Trim|Flower|Smalls|Tops|Mids|Fresh\s*Frozen)/i);
+      if (typeMatch) {
+        type = typeMatch[1].trim();
+        if (type.toLowerCase() === 'flower') type = 'Tops';
+      }
+      // Clone / Tissue Culture / Seed
+      if (!type) {
+        const cloneMatch = itemName.match(/(Clone[s]?|Tissue\s*Culture|Seed[s]?|TC)/i);
+        if (cloneMatch) {
+          const ct = cloneMatch[1].toLowerCase();
+          if (ct.includes('tissue') || ct === 'tc') type = 'Tissue Culture';
+          else if (ct.includes('clone')) type = 'Clones';
+          else if (ct.includes('seed')) type = 'Seeds';
+        }
+      }
+    }
+    // Trim from "(Leaf)" indicator
+    if (!type && itemName.toLowerCase().includes('leaf')) type = 'Trim';
+
+    // Source Harvest IDs (SHF_XXX_XXXXXX pattern)
+    const harvestIds = [];
+    const harvMatches = block.matchAll(/SHF[_\s][A-Z0-9#]+[_\s]\d{4,8}/gi);
+    for (const hm of harvMatches) {
+      harvestIds.push(hm[0].replace(/\s/g, '_'));
+    }
+
+    packages.push({
+      num: pkgPositions[i].num,
+      packageUid,
+      itemName,
+      strain,
+      type,
+      quantity,
+      unit,
+      harvestIds,
+    });
+  }
+
+  return packages;
+}
+
+// ============================================================
+// MANIFEST SCANNER — DISPLAY RESULTS
+// ============================================================
+function displayParsedResults(manifest) {
+  // Direction badge
+  const badge = document.getElementById('directionBadge');
+  if (manifest.isNursery) {
+    badge.textContent = '🌱 NURSERY INBOUND';
+    badge.className = 'direction-badge nursery';
+  } else if (manifest.direction === 'inbound') {
+    badge.textContent = '↩️ INBOUND';
+    badge.className = 'direction-badge inbound';
+  } else {
+    badge.textContent = '📦 OUTBOUND SALE';
+    badge.className = 'direction-badge outbound';
+  }
+
+  // Manifest info
+  document.getElementById('parsed-manifestNo').textContent = manifest.manifestNo || '—';
+  document.getElementById('parsed-date').textContent = manifest.dateCreated || '—';
+  document.getElementById('parsed-from').textContent = manifest.originEntity || '—';
+  document.getElementById('parsed-to').textContent = manifest.destination || '—';
+
+  // Packages
+  const list = document.getElementById('packagesList');
+  list.innerHTML = '';
+
+  if (manifest.packages.length === 0) {
+    list.innerHTML = '<div class="parsed-card"><h4>No packages detected</h4><p style="font-size:13px;color:var(--gray-500);">The OCR may have had trouble reading the manifest. You can enter data manually using the form buttons below.</p></div>';
+  }
+
+  manifest.packages.forEach((pkg, i) => {
+    const card = document.createElement('div');
+    card.className = 'package-card';
+    card.innerHTML = `
+      <div class="pkg-header">
+        <span class="pkg-num">PACKAGE ${pkg.num}</span>
+        ${pkg.packageUid ? '<span style="font-size:11px;color:var(--gray-500);font-family:monospace;">' + pkg.packageUid.substring(0,12) + '...</span>' : ''}
+      </div>
+      <div class="pkg-strain">${pkg.strain || pkg.itemName || 'Unknown Strain'}</div>
+      <div class="pkg-details" style="margin-top:8px;">
+        <div class="pkg-detail">Type: <span>${pkg.type || '—'}</span></div>
+        <div class="pkg-detail">Qty: <span>${pkg.quantity} ${pkg.unit}</span></div>
+        ${pkg.harvestIds.length ? '<div class="pkg-detail">Harvest: <span>' + pkg.harvestIds.join(', ') + '</span></div>' : ''}
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  // Show a note about editing
+  if (manifest.packages.length > 0) {
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size: 13px; color: var(--gray-500); text-align: center; padding: 8px 0;';
+    note.textContent = 'Review above, then tap "Send All" to add ' + manifest.packages.length + ' row(s) to the Flower Tracker';
+    list.appendChild(note);
+  }
+}
+
+// ============================================================
+// MANIFEST SCANNER — SEND TO SHEET
+// ============================================================
+async function sendAllPackagesToSheet() {
+  if (!parsedManifest || parsedManifest.packages.length === 0) {
+    showStatus('scan-status', 'error', 'No packages to send. Try scanning again.');
+    return;
+  }
+
+  const m = parsedManifest;
+  const btn = document.querySelector('.action-buttons .submit-btn.secondary');
+  btn.disabled = true;
+  btn.textContent = '⏳ Sending...';
+
+  let successCount = 0;
+  let errorMsg = '';
+
+  // Convert manifest date to YYYY-MM-DD for the sheet
+  let dateForSheet = '';
+  if (m.dateCreated) {
+    // Handle M/D/YYYY format
+    const parts = m.dateCreated.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (parts) {
+      dateForSheet = parts[3] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
+    } else {
+      dateForSheet = m.dateCreated;
+    }
+  }
+
+  // Determine the target sheet and build rows
+  for (const pkg of m.packages) {
+    let sheetKey, rowData;
+
+    if (m.isNursery) {
+      sheetKey = 'nursery2025';
+      rowData = {
+        garden: new Date().getFullYear().toString(),
+        date: dateForSheet,
+        harvest_id: '',
+        strain: pkg.strain,
+        origin: '',
+        type: pkg.type || 'Clones',
+        quantity___lbs_out_type: pkg.quantity,
+        manifest_no_in: m.manifestNo,
+        invoice_no: '',
+        transferred_to: m.destination,
+        from: m.originEntity,
+        purpose: '',
+        notes: 'Scanned from manifest. UID: ' + (pkg.packageUid || ''),
+        _submittedBy: 'Manifest Scanner'
+      };
+    } else if (m.direction === 'inbound') {
+      sheetKey = 'inbound';
+      rowData = {
+        garden: new Date().getFullYear().toString(),
+        date: dateForSheet,
+        harvest_id: pkg.harvestIds.join(', '),
+        strain: pkg.strain,
+        type: pkg.type || '',
+        quantity___lbs_out_type: pkg.quantity,
+        manifest_no_in: m.manifestNo,
+        invoice_no: '',
+        transferred_to: '',
+        from: m.originEntity,
+        purpose: '',
+        notes: 'Scanned from manifest. UID: ' + (pkg.packageUid || ''),
+        _submittedBy: 'Manifest Scanner'
+      };
+    } else {
+      // Outbound
+      sheetKey = 'outbound';
+      rowData = {
+        garden: new Date().getFullYear().toString(),
+        date: dateForSheet,
+        harvest_id: pkg.harvestIds.join(', '),
+        strain: pkg.strain,
+        type: pkg.type || '',
+        quantity___lbs_out_type: pkg.quantity,
+        manifest_no_out: m.manifestNo,
+        invoice_no: '',
+        transferred_to: m.destination,
+        sold_to: m.destination,
+        purpose: 'Bulk Sale',
+        notes: 'Scanned from manifest. UID: ' + (pkg.packageUid || ''),
+        _submittedBy: 'Manifest Scanner'
+      };
+    }
+
+    // Post to sheet
+    const endpoint = getEndpoint();
+    if (!endpoint) {
+      offlineQueue.push({ sheet: sheetKey, data: rowData, timestamp: new Date().toISOString() });
+      localStorage.setItem('shf_queue', JSON.stringify(offlineQueue));
+      updateQueueBadge();
+      successCount++;
+      continue;
+    }
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ sheet: sheetKey, data: rowData })
+      });
+      const result = await res.json();
+      if (result.success) {
+        successCount++;
+      } else {
+        errorMsg = result.error;
+      }
+    } catch (e) {
+      // Queue it
+      offlineQueue.push({ sheet: sheetKey, data: rowData, timestamp: new Date().toISOString() });
+      localStorage.setItem('shf_queue', JSON.stringify(offlineQueue));
+      updateQueueBadge();
+      successCount++;
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = '✅ Send All to Flower Tracker';
+
+  if (successCount === m.packages.length) {
+    const target = getEndpoint() ? 'Flower Tracker' : 'offline queue';
+    showStatus('scan-status', 'success', '✅ ' + successCount + ' package(s) sent to ' + target + '!');
+  } else if (successCount > 0) {
+    showStatus('scan-status', 'info', '⚠️ ' + successCount + '/' + m.packages.length + ' sent. Error: ' + errorMsg);
+  } else {
+    showStatus('scan-status', 'error', '❌ Failed to send: ' + errorMsg);
+  }
+}
+
+function resetScanner() {
+  parsedManifest = null;
+  document.getElementById('parsedResults').classList.remove('active');
+  document.getElementById('imagePreview').classList.remove('visible');
+  document.getElementById('cameraPlaceholder').style.display = 'flex';
+  document.getElementById('scan-status').className = 'status';
+  document.getElementById('scan-status').innerHTML = '';
+  document.getElementById('captureControls').style.display = 'flex';
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('load', () => {
+  updateConnStatus();
+  const cached = localStorage.getItem('shf_dropdowns');
+  if (cached) {
+    dropdownData = JSON.parse(cached);
+    setupSearchableDropdowns();
+  }
+  if (getEndpoint()) loadDropdowns();
+
+  window.addEventListener('online', syncQueue);
+  syncQueue();
+});
+</script>
+</body>
+</html>
