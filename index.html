@@ -1272,7 +1272,13 @@ function removePackageCard(index) {
 // ============================================================
 async function sendAllPackagesToSheet() {
   const manifestNo = document.getElementById('edit-manifestNo').value.trim();
-  const dateForSheet = document.getElementById('edit-date').value;
+  // Convert YYYY-MM-DD from date input to M/D/YYYY for Google Sheets
+  const dateRaw = document.getElementById('edit-date').value;
+  let dateForSheet = dateRaw;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) {
+    const [y, m, d] = dateRaw.split('-');
+    dateForSheet = parseInt(m) + '/' + parseInt(d) + '/' + y;
+  }
   const originEntity = document.getElementById('edit-from').value.trim();
   const destinationEntity = document.getElementById('edit-to').value.trim();
   const direction = document.getElementById('edit-direction').value;
@@ -1295,7 +1301,8 @@ async function sendAllPackagesToSheet() {
     const idx = card.id.replace('pkg-card-', '');
     const strain = (document.getElementById('pkg-' + idx + '-strain') || {}).value || '';
     const type = (document.getElementById('pkg-' + idx + '-type') || {}).value || '';
-    const qty = (document.getElementById('pkg-' + idx + '-qty') || {}).value || '';
+    const qtyRaw = (document.getElementById('pkg-' + idx + '-qty') || {}).value || '0';
+    const qty = parseFloat(qtyRaw) || 0;
     const unit = (document.getElementById('pkg-' + idx + '-unit') || {}).value || 'lb';
     const harvestIds = (document.getElementById('pkg-' + idx + '-harvestIds') || {}).value || '';
     const uid = (document.getElementById('pkg-' + idx + '-uid') || {}).value || '';
