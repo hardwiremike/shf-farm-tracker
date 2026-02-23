@@ -1,11 +1,11 @@
 {
-  "name": "SHF Farm Tracker",
-  "short_name": "SHF Farm",
-  "description": "Sonoma Hills Farm - Flower Tracking & Data Entry",
+  "name": "SHF Inventory Manager",
+  "short_name": "SHF Inventory",
+  "description": "Sonoma Hills Farm - Inventory Management & Manifest Scanning",
   "start_url": "/shf-farm-tracker/index.html",
   "scope": "/shf-farm-tracker/",
   "display": "standalone",
-  "background_color": "#F0F7E8",
-  "theme_color": "#2D5016",
+  "background_color": "#FBF9F4",
+  "theme_color": "#5C4A32",
   "icons": []
 }
